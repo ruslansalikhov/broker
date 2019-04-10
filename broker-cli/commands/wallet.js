@@ -533,8 +533,23 @@ async function summary (args, opts, logger) {
 
   try {
     const client = new BrokerDaemonClient(rpcAddress)
-    const transactions = await client.walletService.walletSummary({ symbol })
-    logger.info('stuff', { transactions })
+    const { transactions } = await client.walletService.walletSummary({ symbol })
+    logger.info('TOTAL')
+    const totalNumOfWithdrawls = transactions.reduce((prev, t) => {
+      if (t.type !== 'RELAYER_FUNDING') {
+        return Big(prev).plus(1)
+      }
+      return prev
+    }, Big(0))
+    logger.info(`Total transactions ${transactions.length}`)
+    logger.info(`Total number of withdrawls ${totalNumOfWithdrawls}`)
+    logger.info(`Total number of relayer fundings: ${transactions.length - totalNumOfWithdrawls}`)
+    logger.info(`Total fees: ${transactions.reduce((prev, t) => Big(prev).plus(t.fees), Big(0))}`)
+    logger.info('TRANSACTIONS')
+    logger.info('type, amount, fees, timestamp, transaction, block')
+    transactions.forEach(({ type, amount, fees, timestamp, transaction, blockNumber }) => {
+      logger.info(`${type}, ${amount}, ${fees}, ${timestamp}, ${transaction}, ${blockNumber}`)
+    })
   } catch (e) {
     logger.error(handleError(e))
   }

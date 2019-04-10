@@ -44,6 +44,7 @@ class WalletService {
       WithdrawFundsResponse,
       CreateWalletResponse,
       ReleaseChannelsResponse,
+      WalletSummaryResponse,
       google: {
         protobuf: {
           Empty: EmptyResponse
@@ -61,7 +62,7 @@ class WalletService {
       withdrawFunds: new GrpcUnaryMethod(withdrawFunds, this.messageId('withdrawFunds'), { logger, engines, auth }, { WithdrawFundsResponse }).register(),
       createWallet: new GrpcUnaryMethod(createWallet, this.messageId('createWallet'), { logger, engines, auth }, { CreateWalletResponse }).register(),
       unlockWallet: new GrpcUnaryMethod(unlockWallet, this.messageId('unlockWallet'), { logger, engines, auth }, { EmptyResponse }).register(),
-      walletSummary: new GrpcUnaryMethod(walletSummary, this.messageId('walletSummary'), { logger, engines, auth }, { EmptyResponse }).register()
+      walletSummary: new GrpcUnaryMethod(walletSummary, this.messageId('walletSummary'), { logger, engines, auth }, { WalletSummaryResponse }).register()
     }
   }
 
