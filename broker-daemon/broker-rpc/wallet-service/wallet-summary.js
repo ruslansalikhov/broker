@@ -2,7 +2,8 @@ const { Big } = require('../../utils')
 
 const TRANSACTION_TYPES = Object.freeze({
   RELAYER_FUNDING: 'RELAYER_FUNDING',
-  BROKER_FUNDING: 'BROKER_FUNDING'
+  BROKER_FUNDING: 'BROKER_FUNDING',
+  WALLET_DEPOSIT: 'WALLET_DEPOSIT'
 })
 
 /**
@@ -26,19 +27,36 @@ async function walletSummary ({ logger, params, engines }, { WalletSummaryRespon
   }
 
   const transactions = await engine.getChainTransactions()
+  engine.client.getTransactions({}, (err, { transactions }) => {
+    if (err) throw err
+    transactions.forEach(t => {
+      console.log(t)
+      console.log(t.destAddresses)
+    })
+  })
 
   console.log(transactions)
 
   const formattedTransactions = transactions.map(({ amount, transaction, blockNumber, timestamp, fees }) => {
+    let determinedType = ''
+
+    if (Big(amount).lt(0)) {
+      determinedType = TRANSACTION_TYPES.RELAYER_FUNDING
+    } else if (Big(amount).gt(0) && Big(fees).gt(0)) {
+      determinedType = TRANSACTION_TYPES.BROKER_FUNDING
+    } else {
+      determinedType = TRANSACTION_TYPES.WALLET_DEPOSIT
+    }
+
     return {
       // TODO: need to see if there is a way to differentiate between withdrawl and adding
       // funds to the actual wallet
-      type: Big(amount).gt(0) ? TRANSACTION_TYPES.BROKER_FUNDING : TRANSACTION_TYPES.RELAYER_FUNDING,
-      amount,
+      type: determinedType,
+      amount: Big(amount).div(engine.quantumsPerCommon).toString(),
       transaction,
       blockNumber,
       timestamp,
-      fees
+      fees: Big(fees).div(engine.quantumsPerCommon).toString()
     }
   })
 

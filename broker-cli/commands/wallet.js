@@ -519,6 +519,24 @@ async function unlock (args, opts, logger) {
   }
 }
 
+function numTransactionsForCode (code, transactions) {
+  return transactions.reduce((prev, t) => {
+    if (t.type === code) {
+      return Big(prev).plus(1)
+    }
+    return prev
+  }, Big(0)).toString()
+}
+
+function amountTransactionsForCode (code, transactions) {
+  return transactions.reduce((prev, t) => {
+    if (t.type === code) {
+      return Big(prev).plus(t.amount)
+    }
+    return prev
+  }, Big(0)).toString()
+}
+
 /**
  *
  * @param {Object} args
@@ -534,22 +552,35 @@ async function summary (args, opts, logger) {
   try {
     const client = new BrokerDaemonClient(rpcAddress)
     const { transactions } = await client.walletService.walletSummary({ symbol })
-    logger.info('TOTAL')
-    const totalNumOfWithdrawls = transactions.reduce((prev, t) => {
-      if (t.type !== 'RELAYER_FUNDING') {
-        return Big(prev).plus(1)
-      }
-      return prev
-    }, Big(0))
-    logger.info(`Total transactions ${transactions.length}`)
-    logger.info(`Total number of withdrawls ${totalNumOfWithdrawls}`)
-    logger.info(`Total number of relayer fundings: ${transactions.length - totalNumOfWithdrawls}`)
-    logger.info(`Total fees: ${transactions.reduce((prev, t) => Big(prev).plus(t.fees), Big(0))}`)
-    logger.info('TRANSACTIONS')
-    logger.info('type, amount, fees, timestamp, transaction, block')
-    transactions.forEach(({ type, amount, fees, timestamp, transaction, blockNumber }) => {
-      logger.info(`${type}, ${amount}, ${fees}, ${timestamp}, ${transaction}, ${blockNumber}`)
+
+    const totalTable = new Table({
+      head: ['Description', 'Amount'],
+      style: { head: ['gray'] }
     })
+
+    totalTable.push(['Total Transactions', transactions.length])
+    totalTable.push(['Total # withdrawn', numTransactionsForCode('BROKER_FUNDING', transactions)])
+    totalTable.push(['Total withdrawn', amountTransactionsForCode('BROKER_FUNDING', transactions)])
+    totalTable.push(['Total # commits', numTransactionsForCode('RELAYER_FUNDING', transactions)])
+    totalTable.push(['Total commits', Math.abs(amountTransactionsForCode('RELAYER_FUNDING', transactions))])
+    totalTable.push(['Total # desposited', numTransactionsForCode('WALLET_DEPOSIT', transactions)])
+    totalTable.push(['Total deposited', amountTransactionsForCode('WALLET_DEPOSIT', transactions)])
+    totalTable.push(['Total Fees', transactions.reduce((prev, t) => Big(prev).plus(t.fees), Big(0)).toString()])
+
+    const transactionTable = new Table({
+      head: ['Type', 'Amount', 'Fees', 'Timestamp', 'Transaction', 'Block'],
+      style: { head: ['gray'] }
+    })
+
+    transactions.forEach(({ type, amount, fees, timestamp, transaction, blockNumber }) => {
+      transactionTable.push([type, amount, fees, timestamp, transaction, blockNumber])
+    })
+
+    logger.info(totalTable.toString())
+    logger.info('')
+    logger.info('  Transactions:')
+    logger.info(transactionTable.toString())
+    logger.info('')
   } catch (e) {
     logger.error(handleError(e))
   }
